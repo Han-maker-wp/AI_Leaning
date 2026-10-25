@@ -1,0 +1,44 @@
+[
+  {
+    "instruction": "解释 Java 中 HashMap 与 Hashtable 的主要区别。",
+    "input": "",
+    "output": "主要区别有四点：\n1. 线程安全：Hashtable 的方法大多加了 synchronized，线程安全但性能低；HashMap 非线程安全，单线程场景性能更好。\n2. null 支持：HashMap 允许一个 null 键和多个 null 值；Hashtable 不允许 null 键和 null 值，会抛出 NullPointerException。\n3. 初始容量与扩容：HashMap 默认容量 16，扩容为原来的 2 倍；Hashtable 默认容量 11，扩容为原来的 2 倍加 1。\n4. 底层结构：HashMap 在 JDK 1.8 后引入红黑树，链表长度超过 8 且数组长度超过 64 时转为红黑树，查询从 O(n) 优化到 O(log n)；Hashtable 始终是数组加链表。\n现代代码中即使需要线程安全，也更推荐 ConcurrentHashMap 而不是 Hashtable。"
+  },
+  {
+    "instruction": "阅读下面的 Java 方法，指出其中的 bug 并给出修复后的完整代码。",
+    "input": "public static int sum(int[] arr) {\n    int sum = 0;\n    for (int i = 0; i <= arr.length; i++) {\n        sum += arr[i];\n    }\n    return sum;\n}",
+    "output": "bug：循环条件 `i <= arr.length` 会在最后一次迭代访问 `arr[arr.length]`，数组有效下标最大为 arr.length - 1，因此会抛出 ArrayIndexOutOfBoundsException。\n\n修复后的代码：\n```java\npublic static int sum(int[] arr) {\n    int sum = 0;\n    for (int i = 0; i < arr.length; i++) {\n        sum += arr[i];\n    }\n    return sum;\n}\n```\n如果使用 JDK 8+，也可以用流式写法：`return Arrays.stream(arr).sum();`"
+  },
+  {
+    "instruction": "用 Java 实现一个线程安全的单例模式，要求懒加载且高效。",
+    "input": "",
+    "output": "推荐使用静态内部类方式（利用类加载机制保证线程安全，且懒加载）：\n\n```java\npublic class Singleton {\n\n    private Singleton() {\n        // 防止反射破坏单例（可选加固）\n        if (Holder.INSTANCE != null) {\n            throw new IllegalStateException(\"Instance already created\");\n        }\n    }\n\n    private static class Holder {\n        private static final Singleton INSTANCE = new Singleton();\n    }\n\n    public static Singleton getInstance() {\n        return Holder.INSTANCE;\n    }\n}\n```\n\n要点说明：\n1. 懒加载：Holder 类只有在 getInstance() 首次调用时才会被加载，此时才创建实例。\n2. 线程安全：JVM 保证类初始化是线程安全的，无需 synchronized。\n3. 高效：getInstance() 没有锁开销。\n\n替代方案：直接用 enum 实现单例（Joshua Bloch 推荐），天然防反射与防反序列化破坏。"
+  },
+  {
+    "instruction": "为下面的 Java 方法编写 JUnit 5 单元测试，要求覆盖正常情况、边界情况和异常情况。",
+    "input": "/**\n * 返回字符串中最长的回文子串的长度；入参为 null 或空串时返回 0。\n */\npublic static int longestPalindromeLength(String s) {\n    if (s == null || s.isEmpty()) {\n        return 0;\n    }\n    // ...实现略...\n}",
+    "output": "```java\nimport org.junit.jupiter.api.Test;\nimport org.junit.jupiter.params.ParameterizedTest;\nimport org.junit.jupiter.params.provider.CsvSource;\nimport static org.junit.jupiter.api.Assertions.*;\n\nclass PalindromeTest {\n\n    @Test\n    void normalCase() {\n        assertEquals(3, longestPalindromeLength(\"abaccd\")); // \"aba\"\n        assertEquals(4, longestPalindromeLength(\"abbacd\")); // \"abba\"\n    }\n\n    @Test\n    void boundaryCases() {\n        assertEquals(1, longestPalindromeLength(\"a\"));      // 单字符\n        assertEquals(1, longestPalindromeLength(\"abc\"));    // 无重复字符时最长为 1\n    }\n\n    @Test\n    void nullAndEmpty() {\n        assertEquals(0, longestPalindromeLength(null));\n        assertEquals(0, longestPalindromeLength(\"\"));\n    }\n}\n```\n覆盖设计说明：正常情况选了奇数长度（aba）与偶数长度（abba）两类回文；边界情况覆盖单字符与全不重复字符串；异常情况覆盖 null 与空串两类特殊入参。"
+  },
+  {
+    "instruction": "把下面的 SQL 查询需求改写成一条带索引提示建议的 SQL，并解释你在哪个字段上建议建索引。",
+    "input": "表 orders 字段：id, user_id, status, amount, created_at。\n需求：查询 2024 年 10 月内、状态为 PAID 的订单，按金额从高到低取前 10 条。",
+    "output": "```sql\nSELECT id, user_id, amount, created_at\nFROM orders\nWHERE status = 'PAID'\n  AND created_at >= '2024-10-01'\n  AND created_at < '2024-11-01'\nORDER BY amount DESC\nLIMIT 10;\n```\n\n索引建议：优先建复合索引 (status, created_at)——等值条件 status 放前、范围条件 created_at 放后，符合最左前缀与等值优先原则，能同时服务筛选；若该查询是高频核心查询，可考虑把 amount 加入索引 (status, created_at, amount) 以避免额外的排序（覆盖索引思路），但写入开销会增大，需要结合业务读写比权衡。"
+  },
+  {
+    "instruction": "用中文解释什么是 RESTful API 的幂等性，并举出 HTTP 方法对应的例子。",
+    "input": "",
+    "output": "幂等性指同一个请求执行一次与执行多次，对系统产生的效果相同。\n\n各 HTTP 方法的幂等性：\n- GET、HEAD、OPTIONS：天然幂等，只读不改。\n- PUT：幂等。用同一个资源表示覆盖多次，最终状态一致。\n- DELETE：幂等。删除同一资源一次或多次，资源都不存在了；注意第二次删除通常返回 404，但系统状态没变，仍视为幂等。\n- POST：不幂等。每次调用都会新建资源，重复提交会创建多条记录。\n\n工程意义：超时重试机制只应作用于幂等接口；对 POST 接口需要额外的幂等键（如请求头携带唯一 token，服务端去重）来防止重复下单等事故。"
+  },
+  {
+    "_note": "【故意留瑕疵样例 1】问题：output 敷衍且含占位符——仅有一句空泛描述、以“此处省略”代替实现。这类数据训进去会让模型学会“用废话和占位符交差”。清洗时应过滤，或补全为完整回答后保留。",
+    "instruction": "实现一个 Java 方法，判断给定字符串是否为合法的 IPv4 地址。",
+    "input": "",
+    "output": "可以用正则表达式来实现，大致思路是分割字符串然后逐段判断，代码此处省略。"
+  },
+  {
+    "_note": "【故意留瑕疵样例 2】问题：output 答非所问——instruction 要求返回 JSON 格式，output 却是散文；且与题目意图（结构化输出）不符。这类“格式不遵循”样本是格式类微调的毒药，应按 data_clean.py 的格式校验规则过滤，或改写 output 为合法 JSON。",
+    "instruction": "把下面的错误信息整理成 JSON 格式返回，包含 code、message、timestamp 三个字段。",
+    "input": "ERROR 2024-10-01T12:00:00Z Database connection refused (code=5001)",
+    "output": "这个错误说的是数据库连接被拒绝了，发生时间是 2024 年 10 月 1 日中午 12 点，错误码是 5001。遇到这种问题一般要检查数据库服务是否启动、连接配置是否正确。"
+  }
+]
